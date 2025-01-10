@@ -145,8 +145,8 @@ fn install_pkg_config() {
 
 fn is_conan_installed() -> bool {
     let output = Command::new("conan").arg("--version").output();
-    match output {
+    return match output {
         Ok(output) => output.status.success(),
         Err(_) => false,
-    }
+    };
 }

@@ -8,50 +8,21 @@ mod utils;
 fn main() {
     let header_str = include_str!("headers.txt");
     let args: Vec<String> = env::args().collect();
-    let dirname: String;
-    if args.len() > 1 { dirname = args[1].clone(); }
-    else { dirname = ".".to_string(); }
-    let headers: Vec<String> = {
-        header_str
-            .to_string()
-            .lines()
-            .map(|x| x.to_string())
-            .collect()
-    };
+    let dirname = if args.len() > 1 { args[1].clone() } else { ".".to_string() };
+    let headers: Vec<String> = header_str.to_string().lines().map(|x| x.to_string()).collect();
     let files = walk_dir(&dirname);
-    let mut includes = get_includes(&files, &headers);
-    let local_files = check_for_local_files(&dirname);
-    includes = remove_local_files_from_includes(&includes, &local_files);
+    let includes = remove_local_files_from_includes(
+        &get_includes(&files, &headers), 
+        &check_for_local_files(&dirname),
+    );
     let packages = extract_names_from_headers(&includes);
     let installed_managers = install::get_installed_pkg_managers();
-    let mut found_packages = Vec::<(String, String)>::new();
-    if installed_managers.len() > 0 {
-        for manager in installed_managers.clone() {
-            for package in packages.clone() {
-                let res = manager::check_manager_for_pkg(&manager, &package);
-                if res { found_packages.push((manager.clone(), package)); }
-            }
-            println!("");
-        }
-    }
-    let managers = install::get_missing_pkg_managers();
+    let found_packages = find_packages(&installed_managers, &packages);
+    let missing_managers = install::get_missing_pkg_managers();
     if installed_managers.len() < 3 { install::install_missing_pkg_managers(); }
-    for manager in managers {
-        for package in packages.clone() {
-            let res = manager::check_manager_for_pkg(&manager, &package);
-            if res { found_packages.push((manager.clone(), package)); }
-        }
-        println!("");
-    }
-    for entry in found_packages.iter() {
-        println!("'{}' found with {}!", entry.1, entry.0);
-    }
-    println!("");
-    for package in packages {
-        if !found_packages.iter().map(|x| x.1.clone()).collect::<Vec<String>>().contains(&package) {
-            println!("'{}' not found.", &package);
-        }
-    }
+    let additional_found_packages = find_packages(&missing_managers, &packages);
+    let all_found_packages = [found_packages, additional_found_packages].concat();
+    report_packages(&all_found_packages, &packages);
     //todo: check package manager outputs for messages like "Did you mean..."
 }
 
@@ -195,4 +166,31 @@ fn remove_local_files_from_includes(includes: &Vec<String>, local_files: &Vec<St
         }
     }).map(|x| x.to_owned()).collect::<Vec<String>>();
     return result;
+}
+
+fn find_packages(installed_managers: &Vec::<String>, packages: &Vec::<String>) -> Vec<(String, String)> {
+    let mut found_packages = Vec::<(String, String)>::new();
+    if installed_managers.len() > 0 {
+        for manager in installed_managers {
+            for package in packages {
+                let res = manager::check_manager_for_pkg(&manager, &package);
+                if res { found_packages.push((manager.clone(), package.to_owned())); }
+            }
+            println!("");
+        }
+    }
+    return found_packages;
+}
+
+fn report_packages(found_packages: &Vec::<(String, String)>, packages: &Vec::<String>) {
+    for (manager, package) in found_packages {
+        println!("'{}' found with {}!", package, manager);
+    }
+    println!("");
+    let found_package_names: Vec<&String> = found_packages.iter().map(|(_, pkg)| pkg).collect();
+    for package in packages {
+        if !found_package_names.contains(&package) {
+            println!("'{}' not found.", package);
+        }
+    }
 }
