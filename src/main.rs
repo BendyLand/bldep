@@ -420,4 +420,3 @@ fn remove_local_files_from_includes(includes: &Vec<String>, local_files: &Vec<St
     }).map(|x| x.to_owned()).collect::<Vec<String>>();
     return result;
 }
-
