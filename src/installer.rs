@@ -79,6 +79,18 @@ fn install_vcpkg() {
     }
 }
 
+pub fn remove_vcpkg() -> bool {
+    let res = {
+        Command::new("rm")
+        .args(&["-rf", "vcpkg"])
+        .status()
+    };
+    return match res {
+        Ok(status) => status.success(),
+        Err(_) => false,
+    };
+}
+
 fn install_conan() {
     let output = {
         Command::new("pip")

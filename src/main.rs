@@ -1,7 +1,7 @@
 use std::env;
 use std::str;
 
-mod install;
+mod installer;
 mod manager;
 mod utils;
 
@@ -16,13 +16,17 @@ fn main() {
         &check_for_local_files(&dirname),
     );
     let packages = extract_names_from_headers(&includes);
-    let installed_managers = install::get_installed_pkg_managers();
+    let missing_managers = installer::get_missing_pkg_managers();
+    let installed_managers = installer::get_installed_pkg_managers();
+    if installed_managers.len() < 3 { installer::install_missing_pkg_managers(); }
     let found_packages = find_packages(&installed_managers, &packages);
-    let missing_managers = install::get_missing_pkg_managers();
-    if installed_managers.len() < 3 { install::install_missing_pkg_managers(); }
     let additional_found_packages = find_packages(&missing_managers, &packages);
     let all_found_packages = [found_packages, additional_found_packages].concat();
     report_packages(&all_found_packages, &packages);
+    if missing_managers.contains(&"vcpkg".to_string()) { 
+        let res = installer::remove_vcpkg(); 
+        if res { println!("vcpkg removed successfully!"); }
+    }
     //todo: check package manager outputs for messages like "Did you mean..."
 }
 
@@ -193,4 +197,5 @@ fn report_packages(found_packages: &Vec::<(String, String)>, packages: &Vec::<St
             println!("'{}' not found.", package);
         }
     }
+    println!("");
 }
